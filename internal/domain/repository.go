@@ -22,7 +22,7 @@ type ProductRepository interface {
 	Update(ctx context.Context, p *Product) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, filter ProductFilter) ([]Product, int64, error)
-	BulkUpsert(ctx context.Context, products []Product) (int, error)
+	BulkUpsert(ctx context.Context, products []Product) (created int, updated int, err error)
 }
 
 type OrderRepository interface {

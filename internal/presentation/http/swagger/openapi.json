@@ -178,6 +178,43 @@
           "404": { "description": "Product not found" }
         }
       }
+    },
+    "/api/v1/products/import-csv": {
+      "post": {
+        "summary": "Import Products from CSV",
+        "tags": ["Products"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file containing products"
+                  }
+                },
+                "required": ["file"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "CSV Import Result with row audit details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ImportResult" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid CSV file or missing headers"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -208,6 +245,28 @@
           "price": { "type": "number", "minimum": 0 },
           "stock": { "type": "integer", "minimum": 0 },
           "weight_kg": { "type": "number", "minimum": 0 }
+        }
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "total_rows": { "type": "integer" },
+          "created": { "type": "integer" },
+          "updated": { "type": "integer" },
+          "imported": { "type": "integer" },
+          "failed": { "type": "integer" },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": { "type": "integer" },
+                "sku": { "type": "string" },
+                "field": { "type": "string" },
+                "error": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }

@@ -126,9 +126,19 @@ func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter)
 	return products, total, nil
 }
 
-func (r *GormProductRepo) BulkUpsert(ctx context.Context, products []domain.Product) (int, error) {
+func (r *GormProductRepo) BulkUpsert(ctx context.Context, products []domain.Product) (int, int, error) {
 	if len(products) == 0 {
-		return 0, nil
+		return 0, 0, nil
+	}
+
+	skus := make([]string, len(products))
+	for i, p := range products {
+		skus[i] = p.SKU
+	}
+
+	var existingCount int64
+	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Where("sku IN ?", skus).Count(&existingCount).Error; err != nil {
+		return 0, 0, err
 	}
 
 	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{
@@ -139,7 +149,10 @@ func (r *GormProductRepo) BulkUpsert(ctx context.Context, products []domain.Prod
 	}).CreateInBatches(products, 100)
 
 	if res.Error != nil {
-		return int(res.RowsAffected), res.Error
+		return 0, 0, res.Error
 	}
-	return int(res.RowsAffected), nil
+
+	updated := int(existingCount)
+	created := len(products) - updated
+	return created, updated, nil
 }

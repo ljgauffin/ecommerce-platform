@@ -17,6 +17,7 @@ import (
 	"github.com/lucasgauffin/ecommerce-platform/internal/infrastructure/database"
 	"github.com/lucasgauffin/ecommerce-platform/internal/infrastructure/persistence"
 	apphttp "github.com/lucasgauffin/ecommerce-platform/internal/presentation/http"
+	"github.com/lucasgauffin/ecommerce-platform/internal/usecase"
 )
 
 func main() {
@@ -51,6 +52,8 @@ func main() {
 
 	productRepo := persistence.NewGormProductRepo(db.Gorm)
 	productHandler := apphttp.NewProductHandler(productRepo)
+	csvUC := usecase.NewCsvImportUseCase(productRepo)
+	csvHandler := apphttp.NewCsvHandler(csvUC)
 	swaggerHandler := apphttp.NewSwaggerHandler()
 
 	r := chi.NewRouter()
@@ -101,6 +104,7 @@ func main() {
 	r.Route("/api/v1/products", func(r chi.Router) {
 		r.Get("/", productHandler.List)
 		r.Post("/", productHandler.Create)
+		r.Post("/import-csv", csvHandler.ImportCSV)
 		r.Get("/{id}", productHandler.GetByID)
 		r.Put("/{id}", productHandler.Update)
 		r.Delete("/{id}", productHandler.Delete)
