@@ -1,0 +1,215 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Enterprise E-Commerce Platform API",
+    "version": "1.0.0",
+    "description": "High-performance, distributed e-commerce backend with ACID concurrency control, idempotency, and CSV ingestion."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local server"
+    }
+  ],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "summary": "Liveness Probe",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Server is running",
+            "content": {
+              "application/json": {
+                "example": { "status": "UP" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Readiness Probe",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Database connection healthy",
+            "content": {
+              "application/json": {
+                "example": { "status": "READY", "database": "connected" }
+              }
+            }
+          },
+          "503": {
+            "description": "Database disconnected",
+            "content": {
+              "application/json": {
+                "example": { "status": "DOWN", "database": "disconnected" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "summary": "List & Search Products",
+        "tags": ["Products"],
+        "parameters": [
+          { "name": "query", "in": "query", "schema": { "type": "string" }, "description": "Search by name, SKU, category or description" },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Filter by category" },
+          { "name": "min_price", "in": "query", "schema": { "type": "number" }, "description": "Minimum price" },
+          { "name": "max_price", "in": "query", "schema": { "type": "number" }, "description": "Maximum price" },
+          { "name": "in_stock", "in": "query", "schema": { "type": "boolean" }, "description": "Filter in-stock only" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of products",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": "a5d09e5b-3b32-4752-9b2f-8a07f7f89d34",
+                      "sku": "RS-001",
+                      "name": "Running Shoes",
+                      "description": "Lightweight running shoes",
+                      "category": "Footwear",
+                      "price": 89.99,
+                      "stock": 150,
+                      "weight_kg": 0.35,
+                      "created_at": "2026-10-11T12:00:00Z",
+                      "updated_at": "2026-10-11T12:00:00Z"
+                    }
+                  ],
+                  "total": 1,
+                  "limit": 20,
+                  "offset": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a Product",
+        "tags": ["Products"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProductInput" },
+              "example": {
+                "sku": "RS-001",
+                "name": "Running Shoes",
+                "description": "Lightweight running shoes for daily training",
+                "category": "Footwear",
+                "price": 89.99,
+                "stock": 150,
+                "weight_kg": 0.35
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "409": { "description": "Duplicate SKU error" }
+        }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "summary": "Get Product by ID",
+        "tags": ["Products"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "404": { "description": "Product not found" }
+        }
+      },
+      "put": {
+        "summary": "Update Product",
+        "tags": ["Products"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ProductInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Product updated" },
+          "404": { "description": "Product not found" },
+          "409": { "description": "Duplicate SKU" }
+        }
+      },
+      "delete": {
+        "summary": "Delete Product",
+        "tags": ["Products"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "204": { "description": "Product deleted successfully" },
+          "404": { "description": "Product not found" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "type": "string" },
+          "price": { "type": "number" },
+          "stock": { "type": "integer" },
+          "weight_kg": { "type": "number" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProductInput": {
+        "type": "object",
+        "required": ["sku", "name", "category", "price", "stock", "weight_kg"],
+        "properties": {
+          "sku": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": { "type": "string" },
+          "price": { "type": "number", "minimum": 0 },
+          "stock": { "type": "integer", "minimum": 0 },
+          "weight_kg": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
