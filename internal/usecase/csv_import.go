@@ -40,8 +40,6 @@ func NewCsvImportUseCase(repo domain.ProductRepository) *CsvImportUseCase {
 }
 
 func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*ImportResult, error) {
-	// Normalize line endings: some CSV exports produce \r\r\n (double CR).
-	// Strip all \r so csv.Reader (which tolerates \n) works correctly.
 	normalizedReader := newCRStripper(reader)
 
 	bufReader := bufio.NewReader(normalizedReader)
@@ -244,8 +242,6 @@ func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*Imp
 	return result, nil
 }
 
-// crStripper wraps an io.Reader and discards all '\r' bytes.
-// This normalizes both \r\n and \r\r\n to plain \n, which csv.Reader handles natively.
 type crStripper struct {
 	r io.Reader
 }
@@ -256,7 +252,6 @@ func newCRStripper(r io.Reader) io.Reader {
 
 func (s *crStripper) Read(p []byte) (int, error) {
 	n, err := s.r.Read(p)
-	// Compact in-place: drop all '\r' bytes.
 	w := 0
 	for i := 0; i < n; i++ {
 		if p[i] != '\r' {

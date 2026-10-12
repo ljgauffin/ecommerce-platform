@@ -57,6 +57,14 @@ The endpoint accepts `multipart/form-data` with a `file` field
 
 ---
 
+## Checkout & Concurrency (`POST /api/v1/orders/checkout`)
+
+- **Row-level locking**: Used SELECT ... FOR UPDATE inside GORM transactions to guarantee stock deduction and prevent database race conditions over high application demand.
+- **Idempotency**: `Idempotency-Key` header added to avoid duplicate or replayed requests and return the cached order without deducting stock twice.
+- **Automated test**: `tests/concurrency_test.go` simulates 20 simultaneous buyers trying to buy 5 items of stock.
+
+---
+
 ## Running Tests
 
 ```bash

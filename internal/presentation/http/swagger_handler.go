@@ -5,7 +5,6 @@ import (
 	"net/http"
 )
 
-//go:embed swagger/openapi.json
 var swaggerFS embed.FS
 
 const swaggerHTML = `<!DOCTYPE html>

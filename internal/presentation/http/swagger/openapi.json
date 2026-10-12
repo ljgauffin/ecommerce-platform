@@ -215,6 +215,67 @@
           }
         }
       }
+    },
+    "/api/v1/orders/checkout": {
+      "post": {
+        "summary": "Process checkout order with atomic lock and idempotency",
+        "tags": ["Orders"],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional unique idempotency key to prevent duplicate orders",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CheckoutInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "400": { "description": "Validation error in items or email" },
+          "404": { "description": "Product not found" },
+          "409": { "description": "Insufficient stock (conflict)" }
+        }
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "summary": "Get Order details by ID",
+        "tags": ["Orders"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "404": { "description": "Order not found" }
+        }
+      }
     }
   },
   "components": {
@@ -245,6 +306,54 @@
           "price": { "type": "number", "minimum": 0 },
           "stock": { "type": "integer", "minimum": 0 },
           "weight_kg": { "type": "number", "minimum": 0 }
+        }
+      },
+      "CheckoutItemInput": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "CheckoutInput": {
+        "type": "object",
+        "required": ["customer_email", "items"],
+        "properties": {
+          "customer_email": { "type": "string", "format": "email" },
+          "idempotency_key": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CheckoutItemInput" }
+          }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "product_id": { "type": "string" },
+          "sku": { "type": "string" },
+          "product_name": { "type": "string" },
+          "unit_price": { "type": "number" },
+          "quantity": { "type": "integer" },
+          "subtotal": { "type": "number" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "order_number": { "type": "string" },
+          "customer_email": { "type": "string" },
+          "total_amount": { "type": "number" },
+          "status": { "type": "string", "example": "COMPLETED" },
+          "payment_reference": { "type": "string" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OrderItem" }
+          },
+          "created_at": { "type": "string", "format": "date-time" }
         }
       },
       "ImportResult": {

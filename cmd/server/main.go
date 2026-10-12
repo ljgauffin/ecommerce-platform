@@ -51,9 +51,14 @@ func main() {
 	log.Printf("Database connected and schema auto-migrated successfully.")
 
 	productRepo := persistence.NewGormProductRepo(db.Gorm)
+	orderRepo := persistence.NewGormOrderRepo(db.Gorm)
+	idempotencyRepo := persistence.NewGormIdempotencyRepo(db.Gorm)
+
 	productHandler := apphttp.NewProductHandler(productRepo)
 	csvUC := usecase.NewCsvImportUseCase(productRepo)
 	csvHandler := apphttp.NewCsvHandler(csvUC)
+	checkoutUC := usecase.NewCheckoutUseCase(productRepo, orderRepo, idempotencyRepo)
+	orderHandler := apphttp.NewOrderHandler(checkoutUC)
 	swaggerHandler := apphttp.NewSwaggerHandler()
 
 	r := chi.NewRouter()
@@ -67,7 +72,7 @@ func main() {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Idempotency-Key"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Idempotency-Key", "X-Idempotency-Key"},
 		ExposedHeaders:   []string{"Link", "Idempotency-Key"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -108,6 +113,11 @@ func main() {
 		r.Get("/{id}", productHandler.GetByID)
 		r.Put("/{id}", productHandler.Update)
 		r.Delete("/{id}", productHandler.Delete)
+	})
+
+	r.Route("/api/v1/orders", func(r chi.Router) {
+		r.Post("/checkout", orderHandler.Checkout)
+		r.Get("/{id}", orderHandler.GetByID)
 	})
 
 	server := &http.Server{
