@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import Filters from "./Filters";
 import ProductCard from "./ProductCard";
 import {
@@ -26,7 +26,28 @@ export default function StoreView({
   onRetry,
   onClearFilters,
   onNavigateToCrud,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }) {
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loadingMore || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          onLoadMore && onLoadMore();
+        }
+      },
+      { rootMargin: "300px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, onLoadMore]);
   return (
     <div>
       
@@ -144,26 +165,83 @@ export default function StoreView({
             </button>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {products.map((product) => {
-              const inCart = cartItems.find((i) => i.product.id === product.id);
-              return (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  cartQuantity={inCart ? inCart.quantity : 0}
-                  onAddToCart={onAddToCart}
-                  showAdminActions={false}
-                />
-              );
-            })}
-          </div>
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: 20,
+              }}
+            >
+              {products.map((product) => {
+                const inCart = cartItems.find((i) => i.product.id === product.id);
+                return (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    cartQuantity={inCart ? inCart.quantity : 0}
+                    onAddToCart={onAddToCart}
+                    showAdminActions={false}
+                  />
+                );
+              })}
+            </div>
+
+            {hasMore && (
+              <div
+                ref={sentinelRef}
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "40px 0 20px",
+                  minHeight: 80,
+                }}
+              >
+                {loadingMore && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      color: "var(--text-secondary)",
+                      fontSize: "0.88rem",
+                    }}
+                  >
+                    <RefreshCw
+                      size={18}
+                      className="animate-spin"
+                      style={{ color: "var(--accent-cyan)" }}
+                    />
+                    <span>Loading more products...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!hasMore && products.length > 0 && (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "48px 0 24px",
+                  color: "var(--text-muted)",
+                  fontSize: "0.82rem",
+                }}
+              >
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "6px 18px",
+                    borderRadius: "var(--radius-full)",
+                    backgroundColor: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  All {totalCount} products loaded
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

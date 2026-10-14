@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   Package,
   Plus,
@@ -18,23 +18,36 @@ import {
   Download,
   Filter,
   ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 export default function ProductCrudView({
   products,
+  totalCount,
   loading,
   error,
   categories,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+  searchTerm,
+  onSearchChange,
+  selectedCategory,
+  onCategoryChange,
+  stockFilter,
+  onStockFilterChange,
+  sortBy,
+  onSortByChange,
   onRefresh,
   onOpenNewProduct,
   onOpenEditProduct,
   onDeleteProduct,
   onOpenImport,
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [stockFilter, setStockFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("name-asc");
   const [copiedSku, setCopiedSku] = useState(null);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
 
@@ -46,67 +59,22 @@ export default function ProductCrudView({
     });
   };
 
-  const totalProducts = products.length;
-  const totalStock = useMemo(() => {
-    return products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
-  }, [products]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
 
-  const outOfStockCount = useMemo(() => {
-    return products.filter((p) => p.stock <= 0).length;
-  }, [products]);
-
-  const lowStockCount = useMemo(() => {
-    return products.filter((p) => p.stock > 0 && p.stock <= 5).length;
-  }, [products]);
-
-  const filteredProducts = useMemo(() => {
-    return products
-      .filter((p) => {
-        if (searchTerm.trim()) {
-          const q = searchTerm.toLowerCase().trim();
-          const catName = p.category?.name || (typeof p.category === "string" ? p.category : "");
-          const matchSku = p.sku?.toLowerCase().includes(q);
-          const matchName = p.name?.toLowerCase().includes(q);
-          const matchCategory = catName.toLowerCase().includes(q);
-          const matchDesc = p.description?.toLowerCase().includes(q);
-          if (!matchSku && !matchName && !matchCategory && !matchDesc) {
-            return false;
-          }
-        }
-
-        const productCat = p.category?.name || (typeof p.category === "string" ? p.category : "");
-        if (selectedCategory && productCat !== selectedCategory) {
-          return false;
-        }
-
-        if (stockFilter === "in_stock" && p.stock <= 0) return false;
-        if (stockFilter === "low_stock" && (p.stock <= 0 || p.stock > 5))
-          return false;
-        if (stockFilter === "out_of_stock" && p.stock > 0) return false;
-
-        return true;
-      })
-      .sort((a, b) => {
-        switch (sortBy) {
-          case "name-asc":
-            return a.name.localeCompare(b.name);
-          case "name-desc":
-            return b.name.localeCompare(a.name);
-          case "sku-asc":
-            return a.sku.localeCompare(b.sku);
-          case "price-asc":
-            return a.price - b.price;
-          case "price-desc":
-            return b.price - a.price;
-          case "stock-asc":
-            return a.stock - b.stock;
-          case "stock-desc":
-            return b.stock - a.stock;
-          default:
-            return 0;
-        }
-      });
-  }, [products, searchTerm, selectedCategory, stockFilter, sortBy]);
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, "...", totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages];
+  };
 
   const handleDownloadCsvTemplate = () => {
     const csvContent =
@@ -158,12 +126,12 @@ export default function ProductCrudView({
             className="input"
             placeholder="Filter by SKU, name, category, or description..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             style={{ paddingLeft: 38, fontSize: "0.85rem" }}
           />
           {searchTerm && (
             <button
-              onClick={() => setSearchTerm("")}
+              onClick={() => onSearchChange("")}
               style={{
                 position: "absolute",
                 right: 10,
@@ -197,7 +165,7 @@ export default function ProductCrudView({
             <select
               className="select"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
+              onChange={(e) => onCategoryChange(e.target.value)}
               style={{ width: "auto", padding: "8px 12px", fontSize: "0.8rem" }}
             >
               <option value="">All ({categories.length})</option>
@@ -217,7 +185,7 @@ export default function ProductCrudView({
             <select
               className="select"
               value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value)}
+              onChange={(e) => onStockFilterChange(e.target.value)}
               style={{ width: "auto", padding: "8px 12px", fontSize: "0.8rem" }}
             >
               <option value="all">All statuses</option>
@@ -233,7 +201,7 @@ export default function ProductCrudView({
             <select
               className="select"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={(e) => onSortByChange(e.target.value)}
               style={{ width: "auto", padding: "8px 12px", fontSize: "0.8rem" }}
             >
               <option value="name-asc">Name (A-Z)</option>
@@ -293,7 +261,7 @@ export default function ProductCrudView({
               <RefreshCw size={14} /> Retry
             </button>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : (!products || products.length === 0) ? (
           <div
             style={{
               padding: "70px 20px",
@@ -319,18 +287,18 @@ export default function ProductCrudView({
               No products found
             </h3>
             <p style={{ fontSize: "0.85rem", marginBottom: 20 }}>
-              {products.length === 0
+              {totalCount === 0 && !searchTerm && !selectedCategory && stockFilter === "all"
                 ? "The catalogue is currently empty. Get started by creating a product or performing a CSV import."
                 : "No products matched the current search criteria."}
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              {products.length > 0 && (
+              {(searchTerm || selectedCategory || stockFilter !== "all") && (
                 <button
                   className="btn btn-secondary"
                   onClick={() => {
-                    setSearchTerm("");
-                    setSelectedCategory("");
-                    setStockFilter("all");
+                    onSearchChange("");
+                    onCategoryChange("");
+                    onStockFilterChange("all");
                   }}
                 >
                   Reset filters
@@ -383,7 +351,7 @@ export default function ProductCrudView({
                 </tr>
               </thead>
               <tbody>
-                {filteredProducts.map((p) => {
+                {(products || []).map((p) => {
                   const isOutOfStock = p.stock <= 0;
                   const isLowStock = p.stock > 0 && p.stock <= 5;
 
@@ -627,40 +595,156 @@ export default function ProductCrudView({
         )}
 
         
-        {!loading && !error && filteredProducts.length > 0 && (
+        {!loading && !error && products && products.length > 0 && (
           <div
             style={{
-              padding: "12px 18px",
+              padding: "14px 18px",
               backgroundColor: "rgba(10, 13, 20, 0.4)",
               borderTop: "1px solid var(--border-subtle)",
-              fontSize: "0.75rem",
+              fontSize: "0.8rem",
               color: "var(--text-muted)",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               flexWrap: "wrap",
-              gap: 12,
+              gap: 16,
             }}
           >
-            <div>
-              Showing <strong>{filteredProducts.length}</strong> of{" "}
-              <strong>{totalProducts}</strong> registered products
-              {searchTerm && (
-                <span>
-                  {" "}
-                  matching "<em>{searchTerm}</em>"
-                </span>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span>
-                Stock in view:{" "}
-                <strong>
-                  {filteredProducts.reduce((acc, p) => acc + (p.stock || 0), 0)}
-                </strong>{" "}
-                units
+                Showing <strong>{totalCount === 0 ? 0 : startIndex + 1}–{endIndex}</strong> of{" "}
+                <strong>{totalCount}</strong> products
               </span>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+                <span style={{ fontSize: "0.75rem" }}>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  className="select"
+                  style={{
+                    height: 28,
+                    padding: "0 8px",
+                    fontSize: "0.75rem",
+                    backgroundColor: "rgba(255, 255, 255, 0.04)",
+                  }}
+                >
+                  <option value={10}>10</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
             </div>
+
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  className="btn btn-ghost"
+                  disabled={currentPage === 1}
+                  onClick={() => onPageChange(1)}
+                  style={{
+                    padding: "4px 8px",
+                    height: 28,
+                    fontSize: "0.75rem",
+                    opacity: currentPage === 1 ? 0.4 : 1,
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  }}
+                  title="First page"
+                >
+                  <ChevronsLeft size={14} />
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  disabled={currentPage === 1}
+                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                  style={{
+                    padding: "4px 8px",
+                    height: 28,
+                    fontSize: "0.75rem",
+                    opacity: currentPage === 1 ? 0.4 : 1,
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  }}
+                  title="Previous page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {getPageNumbers().map((num, idx) => {
+                    if (num === "...") {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          style={{ padding: "0 6px", color: "var(--text-muted)" }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    const isActive = num === currentPage;
+                    return (
+                      <button
+                        key={`page-${num}`}
+                        onClick={() => onPageChange(num)}
+                        style={{
+                          minWidth: 28,
+                          height: 28,
+                          borderRadius: "var(--radius-sm)",
+                          border: isActive
+                            ? "1px solid var(--accent-cyan)"
+                            : "1px solid var(--border-subtle)",
+                          backgroundColor: isActive
+                            ? "rgba(6, 182, 212, 0.15)"
+                            : "rgba(255, 255, 255, 0.02)",
+                          color: isActive
+                            ? "var(--accent-cyan)"
+                            : "var(--text-secondary)",
+                          fontSize: "0.75rem",
+                          fontWeight: isActive ? 600 : 400,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  className="btn btn-ghost"
+                  disabled={currentPage === totalPages}
+                  onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                  style={{
+                    padding: "4px 8px",
+                    height: 28,
+                    fontSize: "0.75rem",
+                    opacity: currentPage === totalPages ? 0.4 : 1,
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  }}
+                  title="Next page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  disabled={currentPage === totalPages}
+                  onClick={() => onPageChange(totalPages)}
+                  style={{
+                    padding: "4px 8px",
+                    height: 28,
+                    fontSize: "0.75rem",
+                    opacity: currentPage === totalPages ? 0.4 : 1,
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  }}
+                  title="Last page"
+                >
+                  <ChevronsRight size={14} />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

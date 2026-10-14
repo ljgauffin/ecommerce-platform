@@ -108,8 +108,12 @@ func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter)
 		tx = tx.Where("products.price <= ?", *filter.MaxPrice)
 	}
 
-	if filter.InStockOnly {
+	if filter.StockStatus == "in_stock" || filter.InStockOnly {
 		tx = tx.Where("products.stock > 0")
+	} else if filter.StockStatus == "low_stock" {
+		tx = tx.Where("products.stock > 0 AND products.stock <= 5")
+	} else if filter.StockStatus == "out_of_stock" {
+		tx = tx.Where("products.stock <= 0")
 	}
 
 	var total int64
@@ -136,6 +140,16 @@ func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter)
 		orderClause = "products.price desc"
 	case "name", "name_asc", "name-asc":
 		orderClause = "products.name asc"
+	case "name_desc", "name-desc":
+		orderClause = "products.name desc"
+	case "sku_asc", "sku-asc":
+		orderClause = "products.sku asc"
+	case "sku_desc", "sku-desc":
+		orderClause = "products.sku desc"
+	case "stock_asc", "stock-asc":
+		orderClause = "products.stock asc"
+	case "stock_desc", "stock-desc":
+		orderClause = "products.stock desc"
 	case "newest":
 		orderClause = "products.created_at desc"
 	}

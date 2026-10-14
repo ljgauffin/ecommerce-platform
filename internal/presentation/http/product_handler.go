@@ -116,6 +116,7 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 		Query:       search,
 		Category:    q.Get("category"),
 		CategoryID:  q.Get("category_id"),
+		StockStatus: q.Get("stock_status"),
 		InStockOnly: q.Get("in_stock") == "true",
 		SortBy:      sortVal,
 		Limit:       20,

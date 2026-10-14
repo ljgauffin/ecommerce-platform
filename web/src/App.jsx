@@ -17,11 +17,23 @@ export default function App() {
     return "store";
   });
 
-  const [products, setProducts] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [storeProducts, setStoreProducts] = useState([]);
+  const [storeTotal, setStoreTotal] = useState(0);
+  const [storeLoading, setStoreLoading] = useState(true);
+  const [storeLoadingMore, setStoreLoadingMore] = useState(false);
+  const [storeHasMore, setStoreHasMore] = useState(true);
+  const [storeError, setStoreError] = useState(null);
+
+  const [crudProducts, setCrudProducts] = useState([]);
+  const [crudTotal, setCrudTotal] = useState(0);
+  const [crudLoading, setCrudLoading] = useState(true);
+  const [crudError, setCrudError] = useState(null);
+  const [crudPage, setCrudPage] = useState(1);
+  const [crudPageSize, setCrudPageSize] = useState(15);
+  const [crudSearch, setCrudSearch] = useState("");
+  const [crudCategory, setCrudCategory] = useState("");
+  const [crudStockFilter, setCrudStockFilter] = useState("all");
+  const [crudSortBy, setCrudSortBy] = useState("name-asc");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -81,6 +93,8 @@ export default function App() {
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  const [categories, setCategories] = useState([]);
+
   const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch(apiUrl("/api/v1/products/categories"));
@@ -93,40 +107,128 @@ export default function App() {
     }
   }, []);
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const STORE_PAGE_SIZE = 12;
+
+  const fetchInitialStoreProducts = useCallback(async () => {
+    setStoreLoading(true);
+    setStoreError(null);
     try {
       const params = new URLSearchParams();
-
-      if (activeTab === "store") {
-        if (searchTerm.trim()) params.set("query", searchTerm.trim());
-        if (selectedCategory) params.set("category", selectedCategory);
-        if (inStockOnly) params.set("in_stock", "true");
-        if (sortBy) params.set("sort", sortBy);
-      }
-
-      params.set("limit", "250");
+      params.set("limit", String(STORE_PAGE_SIZE));
+      params.set("offset", "0");
+      if (searchTerm.trim()) params.set("query", searchTerm.trim());
+      if (selectedCategory) params.set("category", selectedCategory);
+      if (inStockOnly) params.set("in_stock", "true");
+      if (sortBy) params.set("sort", sortBy);
 
       const response = await fetch(apiUrl(`/api/v1/products?${params.toString()}`));
       if (!response.ok) {
         throw new Error(`Failed to load products: HTTP ${response.status}`);
       }
       const json = await response.json();
-      setProducts(json.data || []);
-      setTotalCount(
-        json.total !== undefined
-          ? json.total
-          : json.data
-            ? json.data.length
-            : 0,
-      );
+      const list = json.data || [];
+      const total = json.total !== undefined ? json.total : list.length;
+      setStoreProducts(list);
+      setStoreTotal(total);
+      setStoreHasMore(list.length < total);
     } catch (err) {
-      setError(err.message);
+      setStoreError(err.message);
     } finally {
-      setLoading(false);
+      setStoreLoading(false);
     }
-  }, [activeTab, searchTerm, selectedCategory, inStockOnly, sortBy]);
+  }, [searchTerm, selectedCategory, inStockOnly, sortBy]);
+
+  const handleLoadMoreStore = useCallback(async () => {
+    if (storeLoadingMore || !storeHasMore || storeLoading) return;
+    setStoreLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(STORE_PAGE_SIZE));
+      params.set("offset", String(storeProducts.length));
+      if (searchTerm.trim()) params.set("query", searchTerm.trim());
+      if (selectedCategory) params.set("category", selectedCategory);
+      if (inStockOnly) params.set("in_stock", "true");
+      if (sortBy) params.set("sort", sortBy);
+
+      const response = await fetch(apiUrl(`/api/v1/products?${params.toString()}`));
+      if (!response.ok) {
+        throw new Error(`Failed to load more products: HTTP ${response.status}`);
+      }
+      const json = await response.json();
+      const nextList = json.data || [];
+      const total = json.total !== undefined ? json.total : storeProducts.length + nextList.length;
+
+      setStoreProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p.id));
+        const uniqueNext = nextList.filter((p) => !existingIds.has(p.id));
+        const updated = [...prev, ...uniqueNext];
+        setStoreHasMore(updated.length < total && nextList.length > 0);
+        return updated;
+      });
+      setStoreTotal(total);
+    } catch (err) {
+      console.error("Failed to load more products", err);
+    } finally {
+      setStoreLoadingMore(false);
+    }
+  }, [storeLoadingMore, storeHasMore, storeLoading, storeProducts.length, searchTerm, selectedCategory, inStockOnly, sortBy]);
+
+  const fetchCrudProducts = useCallback(async () => {
+    setCrudLoading(true);
+    setCrudError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("limit", String(crudPageSize));
+      params.set("offset", String((crudPage - 1) * crudPageSize));
+      if (crudSearch.trim()) params.set("query", crudSearch.trim());
+      if (crudCategory) params.set("category", crudCategory);
+      if (crudStockFilter && crudStockFilter !== "all") {
+        params.set("stock_status", crudStockFilter);
+      }
+      if (crudSortBy) params.set("sort", crudSortBy);
+
+      const response = await fetch(apiUrl(`/api/v1/products?${params.toString()}`));
+      if (!response.ok) {
+        throw new Error(`Failed to load CRUD products: HTTP ${response.status}`);
+      }
+      const json = await response.json();
+      setCrudProducts(json.data || []);
+      setCrudTotal(json.total !== undefined ? json.total : (json.data ? json.data.length : 0));
+    } catch (err) {
+      setCrudError(err.message);
+    } finally {
+      setCrudLoading(false);
+    }
+  }, [crudPage, crudPageSize, crudSearch, crudCategory, crudStockFilter, crudSortBy]);
+
+  const handleCrudSearchChange = (term) => {
+    setCrudSearch(term);
+    setCrudPage(1);
+  };
+
+  const handleCrudCategoryChange = (cat) => {
+    setCrudCategory(cat);
+    setCrudPage(1);
+  };
+
+  const handleCrudStockFilterChange = (stock) => {
+    setCrudStockFilter(stock);
+    setCrudPage(1);
+  };
+
+  const handleCrudSortByChange = (sort) => {
+    setCrudSortBy(sort);
+    setCrudPage(1);
+  };
+
+  const handleCrudPageChange = (page) => {
+    setCrudPage(page);
+  };
+
+  const handleCrudPageSizeChange = (size) => {
+    setCrudPageSize(size);
+    setCrudPage(1);
+  };
 
   useEffect(() => {
     fetchCategories();
@@ -134,10 +236,17 @@ export default function App() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchProducts();
+      fetchCrudProducts();
     }, 200);
     return () => clearTimeout(timer);
-  }, [fetchProducts]);
+  }, [fetchCrudProducts]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchInitialStoreProducts();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [fetchInitialStoreProducts]);
 
   const handleAddToCart = (product) => {
     setCartItems((prev) => {
@@ -222,8 +331,10 @@ export default function App() {
         );
       }
 
-      setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
-      setTotalCount((prev) => Math.max(0, prev - 1));
+      setCrudProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
+      setCrudTotal((prev) => Math.max(0, prev - 1));
+      setStoreProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
+      setStoreTotal((prev) => Math.max(0, prev - 1));
       setCartItems((prev) =>
         prev.filter((i) => i.product.id !== productToDelete.id),
       );
@@ -232,6 +343,11 @@ export default function App() {
         "info",
       );
       fetchCategories();
+      if (crudProducts.length === 1 && crudPage > 1) {
+        setCrudPage((p) => p - 1);
+      } else {
+        fetchCrudProducts();
+      }
       setProductToDelete(null);
     } catch (err) {
       addToast(err.message, "error");
@@ -241,7 +357,8 @@ export default function App() {
   };
 
   const handleSaveProductSuccess = (savedProduct, isEditing) => {
-    fetchProducts();
+    fetchCrudProducts();
+    fetchInitialStoreProducts();
     fetchCategories();
     if (isEditing) {
       setCartItems((prev) =>
@@ -265,7 +382,8 @@ export default function App() {
 
   const handleCheckoutSuccess = (order) => {
     addToast(`Order ${order.order_number} confirmed!`, "success");
-    fetchProducts();
+    fetchCrudProducts();
+    fetchInitialStoreProducts();
   };
 
   const handleImportSuccess = (result) => {
@@ -273,7 +391,8 @@ export default function App() {
       `Import finished: ${result.created} new, ${result.updated} updated, ${result.failed} rejected.`,
       result.failed > 0 ? "info" : "success",
     );
-    fetchProducts();
+    fetchCrudProducts();
+    fetchInitialStoreProducts();
     fetchCategories();
   };
 
@@ -299,10 +418,10 @@ export default function App() {
       <main style={{ flex: 1 }}>
         {activeTab === "store" ? (
           <StoreView
-            products={products}
-            totalCount={totalCount}
-            loading={loading}
-            error={error}
+            products={storeProducts}
+            totalCount={storeTotal}
+            loading={storeLoading}
+            error={storeError}
             categories={categories}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
@@ -312,22 +431,38 @@ export default function App() {
             onSelectSort={setSortBy}
             cartItems={cartItems}
             onAddToCart={handleAddToCart}
-            onRetry={fetchProducts}
+            onRetry={fetchInitialStoreProducts}
             onClearFilters={() => {
               setSearchTerm("");
               setSelectedCategory("");
               setInStockOnly(false);
             }}
             onNavigateToCrud={() => handleSelectTab("crud")}
+            hasMore={storeHasMore}
+            loadingMore={storeLoadingMore}
+            onLoadMore={handleLoadMoreStore}
           />
         ) : (
           <ProductCrudView
-            products={products}
-            loading={loading}
-            error={error}
+            products={crudProducts}
+            totalCount={crudTotal}
+            loading={crudLoading}
+            error={crudError}
             categories={categories}
+            currentPage={crudPage}
+            pageSize={crudPageSize}
+            onPageChange={handleCrudPageChange}
+            onPageSizeChange={handleCrudPageSizeChange}
+            searchTerm={crudSearch}
+            onSearchChange={handleCrudSearchChange}
+            selectedCategory={crudCategory}
+            onCategoryChange={handleCrudCategoryChange}
+            stockFilter={crudStockFilter}
+            onStockFilterChange={handleCrudStockFilterChange}
+            sortBy={crudSortBy}
+            onSortByChange={handleCrudSortByChange}
             onRefresh={() => {
-              fetchProducts();
+              fetchCrudProducts();
               fetchCategories();
             }}
             onOpenNewProduct={handleOpenNewProduct}

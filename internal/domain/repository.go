@@ -9,6 +9,7 @@ type ProductFilter struct {
 	Query       string
 	Category    string
 	CategoryID  string
+	StockStatus string
 	MinPrice    *float64
 	MaxPrice    *float64
 	InStockOnly bool
