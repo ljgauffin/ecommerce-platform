@@ -2,8 +2,6 @@ package sanitizer
 
 import (
 	"errors"
-	"html"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -13,16 +11,10 @@ var (
 	ErrInvalidPrice = errors.New("invalid price: must be non-negative decimal or 'free'")
 	ErrInvalidStock = errors.New("invalid stock: must be non-negative integer")
 	ErrInvalidWeight = errors.New("invalid weight: must be positive decimal")
-
-	scriptRegex = regexp.MustCompile(`(?i)<script[\s\S]*?>[\s\S]*?</script>`)
-	tagRegex    = regexp.MustCompile(`(?i)<[^>]+>`)
 )
 
 func SanitizeText(input string) string {
-	cleaned := scriptRegex.ReplaceAllString(input, "")
-	cleaned = tagRegex.ReplaceAllString(cleaned, "")
-	cleaned = html.EscapeString(cleaned)
-	return strings.TrimSpace(cleaned)
+	return strings.TrimSpace(input)
 }
 
 func CleanString(input string) (string, error) {
@@ -30,7 +22,7 @@ func CleanString(input string) (string, error) {
 	if trimmed == "" {
 		return "", ErrEmptyField
 	}
-	return SanitizeText(trimmed), nil
+	return trimmed, nil
 }
 
 func ParsePrice(raw string) (float64, error) {

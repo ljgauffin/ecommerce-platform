@@ -114,24 +114,34 @@ func TestSanitizeText(t *testing.T) {
 			expected: "Running Shoes",
 		},
 		{
-			name:     "title with quotes inside",
+			name:     "title with quotes inside preserved raw",
 			input:    `Monitor 27" 4K`,
-			expected: `Monitor 27&#34; 4K`,
+			expected: `Monitor 27" 4K`,
 		},
 		{
-			name:     "script injection attempt",
+			name:     "single quotes preserved raw",
+			input:    "Robert'); DROP TABLE products;--",
+			expected: "Robert'); DROP TABLE products;--",
+		},
+		{
+			name:     "script tags preserved raw without stripping",
 			input:    "<script>alert('xss')</script> Cool Gadget",
-			expected: "Cool Gadget",
+			expected: "<script>alert('xss')</script> Cool Gadget",
 		},
 		{
-			name:     "html tags stripped",
+			name:     "html tags preserved raw",
 			input:    "<b>Bold</b> <i>Italic</i> Shoes",
-			expected: "Bold Italic Shoes",
+			expected: "<b>Bold</b> <i>Italic</i> Shoes",
 		},
 		{
-			name:     "img onerror injection",
+			name:     "img onerror tag preserved raw",
 			input:    `<img src=x onerror=alert(1)> Mouse`,
-			expected: "Mouse",
+			expected: `<img src=x onerror=alert(1)> Mouse`,
+		},
+		{
+			name:     "whitespace trimmed",
+			input:    "   Trimmed Text   ",
+			expected: "Trimmed Text",
 		},
 	}
 

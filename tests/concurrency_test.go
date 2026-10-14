@@ -43,6 +43,7 @@ func getTestPostgresDB(t *testing.T) *gorm.DB {
 	sqlDB.SetMaxIdleConns(10)
 
 	err = db.AutoMigrate(
+		&domain.Category{},
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},

@@ -15,21 +15,21 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func setupTestDB(t *testing.T) domain.ProductRepository {
+func setupTestDB(t *testing.T) (domain.ProductRepository, domain.CategoryRepository) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)
 
-	err = db.AutoMigrate(&domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.IdempotencyRecord{})
+	err = db.AutoMigrate(&domain.Category{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.IdempotencyRecord{})
 	require.NoError(t, err)
 
-	return persistence.NewGormProductRepo(db)
+	return persistence.NewGormProductRepo(db), persistence.NewGormCategoryRepo(db)
 }
 
 func TestCsvImportUseCase_SuccessAndEdgeCases(t *testing.T) {
-	repo := setupTestDB(t)
-	uc := usecase.NewCsvImportUseCase(repo)
+	repo, catRepo := setupTestDB(t)
+	uc := usecase.NewCsvImportUseCase(repo, catRepo)
 	ctx := context.Background()
 
 	csvContent := `name,sku,description,category,price,stock,weight_kg
@@ -59,19 +59,28 @@ Product'; DROP TABLE products; --,SQLI-001,Safe text,Electronics,49.99,10,1.20
 	require.NoError(t, err)
 	assert.Equal(t, 29.99, mouseProduct.Price)
 
+	monitorProduct, err := repo.GetBySKU(ctx, "UM-027")
+	require.NoError(t, err)
+	assert.Equal(t, `Ultra Monitor 27" 4K`, monitorProduct.Name)
+
 	xssProduct, err := repo.GetBySKU(ctx, "GAD-001")
 	require.NoError(t, err)
-	assert.Equal(t, "Safe Gadget", xssProduct.Name)
-	assert.NotContains(t, xssProduct.Name, "<script>")
+	assert.Equal(t, "<script>alert('xss')</script> Safe Gadget", xssProduct.Name)
+	assert.Contains(t, xssProduct.Name, "<script>")
 
 	sqliProduct, err := repo.GetBySKU(ctx, "SQLI-001")
 	require.NoError(t, err)
+	assert.Equal(t, "Product'; DROP TABLE products; --", sqliProduct.Name)
 	assert.Contains(t, sqliProduct.Name, "DROP TABLE")
+
+	cat, err := catRepo.GetByName(ctx, "Footwear")
+	require.NoError(t, err)
+	assert.Equal(t, "Footwear", cat.Name)
 }
 
 func TestCsvImportUseCase_TabDelimited(t *testing.T) {
-	repo := setupTestDB(t)
-	uc := usecase.NewCsvImportUseCase(repo)
+	repo, catRepo := setupTestDB(t)
+	uc := usecase.NewCsvImportUseCase(repo, catRepo)
 	ctx := context.Background()
 
 	tsvContent := "name\tsku\tdescription\tcategory\tprice\tstock\tweight_kg\n" +
@@ -84,8 +93,8 @@ func TestCsvImportUseCase_TabDelimited(t *testing.T) {
 }
 
 func TestCsvImportUseCase_RowValidationErrors(t *testing.T) {
-	repo := setupTestDB(t)
-	uc := usecase.NewCsvImportUseCase(repo)
+	repo, catRepo := setupTestDB(t)
+	uc := usecase.NewCsvImportUseCase(repo, catRepo)
 	ctx := context.Background()
 
 	csvContent := `name,sku,description,category,price,stock,weight_kg
@@ -117,8 +126,8 @@ Another Valid,VAL-02,Valid,General,20.00,10,2.0
 }
 
 func TestCsvImportUseCase_MissingHeader(t *testing.T) {
-	repo := setupTestDB(t)
-	uc := usecase.NewCsvImportUseCase(repo)
+	repo, catRepo := setupTestDB(t)
+	uc := usecase.NewCsvImportUseCase(repo, catRepo)
 	ctx := context.Background()
 
 	badHeaderCSV := `name,description,category,price
@@ -130,8 +139,8 @@ Item,Desc,Cat,10.00
 }
 
 func TestCsvImportUseCase_DuplicateSKUsRejected(t *testing.T) {
-	repo := setupTestDB(t)
-	uc := usecase.NewCsvImportUseCase(repo)
+	repo, catRepo := setupTestDB(t)
+	uc := usecase.NewCsvImportUseCase(repo, catRepo)
 	ctx := context.Background()
 
 	csvContent := `name,sku,description,category,price,stock,weight_kg
@@ -155,12 +164,11 @@ Product A Clone,DUP-01,Second occurrence,General,15.00,8,1.0
 	assert.Equal(t, 4, result.Errors[1].Row)
 	assert.Equal(t, "DUP-01", result.Errors[1].SKU)
 
-	// DUP-01 must NOT exist in repo
 	_, err = repo.GetBySKU(ctx, "DUP-01")
 	assert.ErrorIs(t, err, domain.ErrProductNotFound)
 
-	// UNIQUE-01 must exist
 	u, err := repo.GetBySKU(ctx, "UNIQUE-01")
 	require.NoError(t, err)
 	assert.Equal(t, "Unique item", u.Description)
 }
+

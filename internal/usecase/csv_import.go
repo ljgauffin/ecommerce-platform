@@ -32,11 +32,12 @@ type ImportResult struct {
 }
 
 type CsvImportUseCase struct {
-	repo domain.ProductRepository
+	repo         domain.ProductRepository
+	categoryRepo domain.CategoryRepository
 }
 
-func NewCsvImportUseCase(repo domain.ProductRepository) *CsvImportUseCase {
-	return &CsvImportUseCase{repo: repo}
+func NewCsvImportUseCase(repo domain.ProductRepository, categoryRepo domain.CategoryRepository) *CsvImportUseCase {
+	return &CsvImportUseCase{repo: repo, categoryRepo: categoryRepo}
 }
 
 func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*ImportResult, error) {
@@ -230,6 +231,18 @@ func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*Imp
 	})
 
 	if len(validProducts) > 0 {
+		if uc.categoryRepo != nil {
+			for i := range validProducts {
+				if validProducts[i].Category != "" {
+					cat, err := uc.categoryRepo.FindOrCreate(ctx, validProducts[i].Category)
+					if err == nil && cat != nil {
+						validProducts[i].CategoryID = cat.ID
+						validProducts[i].Category = cat.Name
+					}
+				}
+			}
+		}
+
 		created, updated, err := uc.repo.BulkUpsert(ctx, validProducts)
 		if err != nil {
 			return nil, fmt.Errorf("bulk upsert valid products: %w", err)

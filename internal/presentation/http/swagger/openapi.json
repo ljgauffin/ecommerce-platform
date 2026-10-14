@@ -62,6 +62,7 @@
           { "name": "min_price", "in": "query", "schema": { "type": "number" }, "description": "Minimum price" },
           { "name": "max_price", "in": "query", "schema": { "type": "number" }, "description": "Maximum price" },
           { "name": "in_stock", "in": "query", "schema": { "type": "boolean" }, "description": "Filter in-stock only" },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["newest", "price-asc", "price-desc", "name"] }, "description": "Sort order" },
           { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
           { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
         ],
@@ -176,6 +177,83 @@
         "responses": {
           "204": { "description": "Product deleted successfully" },
           "404": { "description": "Product not found" }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "summary": "List All Categories",
+        "tags": ["Categories"],
+        "responses": {
+          "200": {
+            "description": "List of categories",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    { "id": "179a78dd-e967-4398-936e-f1ad7b5d7877", "name": "Electronics" },
+                    { "id": "da13072a-6194-4ee6-819b-c1146c7c7358", "name": "Footwear" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a Category",
+        "tags": ["Categories"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" }
+                },
+                "required": ["name"]
+              },
+              "example": { "name": "Apparel" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Category created successfully" },
+          "400": { "description": "Validation error" },
+          "409": { "description": "Category already exists" }
+        }
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "delete": {
+        "summary": "Delete Category",
+        "tags": ["Categories"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "204": { "description": "Category deleted successfully" },
+          "404": { "description": "Category not found" },
+          "409": { "description": "Cannot delete category with existing products" }
+        }
+      }
+    },
+    "/api/v1/products/categories": {
+      "get": {
+        "summary": "Get Distinct Categories",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "List of available categories",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": ["Footwear", "Apparel", "Electronics"]
+                }
+              }
+            }
+          }
         }
       }
     },

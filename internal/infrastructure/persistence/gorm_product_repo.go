@@ -110,20 +110,56 @@ func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter)
 	}
 
 	limit := filter.Limit
-	if limit <= 0 || limit > 100 {
+	if limit <= 0 {
 		limit = 20
+	} else if limit > 1000 {
+		limit = 1000
 	}
 	offset := filter.Offset
 	if offset < 0 {
 		offset = 0
 	}
 
+	orderClause := "created_at desc"
+	switch filter.SortBy {
+	case "price_asc", "price-asc":
+		orderClause = "price asc"
+	case "price_desc", "price-desc":
+		orderClause = "price desc"
+	case "name", "name_asc", "name-asc":
+		orderClause = "name asc"
+	case "newest":
+		orderClause = "created_at desc"
+	}
+
 	var products []domain.Product
-	if err := tx.Order("created_at desc").Limit(limit).Offset(offset).Find(&products).Error; err != nil {
+	if err := tx.Order(orderClause).Limit(limit).Offset(offset).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return products, total, nil
+}
+
+func (r *GormProductRepo) GetCategories(ctx context.Context) ([]string, error) {
+	var categories []string
+	err := r.db.WithContext(ctx).Model(&domain.Category{}).
+		Where("name IS NOT NULL AND name != ''").
+		Distinct().
+		Order("name asc").
+		Pluck("name", &categories).Error
+	if err == nil && len(categories) > 0 {
+		return categories, nil
+	}
+
+	err = r.db.WithContext(ctx).Model(&domain.Product{}).
+		Where("category IS NOT NULL AND category != ''").
+		Distinct().
+		Order("category asc").
+		Pluck("category", &categories).Error
+	if err != nil {
+		return nil, err
+	}
+	return categories, nil
 }
 
 func (r *GormProductRepo) BulkUpsert(ctx context.Context, products []domain.Product) (int, int, error) {

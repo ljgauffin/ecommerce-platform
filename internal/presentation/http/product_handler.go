@@ -12,11 +12,12 @@ import (
 )
 
 type ProductHandler struct {
-	repo domain.ProductRepository
+	repo         domain.ProductRepository
+	categoryRepo domain.CategoryRepository
 }
 
-func NewProductHandler(repo domain.ProductRepository) *ProductHandler {
-	return &ProductHandler{repo: repo}
+func NewProductHandler(repo domain.ProductRepository, categoryRepo domain.CategoryRepository) *ProductHandler {
+	return &ProductHandler{repo: repo, categoryRepo: categoryRepo}
 }
 
 type ProductInput struct {
@@ -36,6 +37,19 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.categoryRepo != nil && strings.TrimSpace(input.Category) != "" {
+		cat, err := h.categoryRepo.GetByName(r.Context(), input.Category)
+		if err != nil {
+			if errors.Is(err, domain.ErrCategoryNotFound) {
+				http.Error(w, "category '"+input.Category+"' does not exist; please select an existing category or create it first", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		input.Category = cat.Name
+	}
+
 	prod, err := domain.NewProduct(
 		input.SKU,
 		input.Name,
@@ -48,6 +62,12 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	if h.categoryRepo != nil && strings.TrimSpace(input.Category) != "" {
+		if cat, err := h.categoryRepo.GetByName(r.Context(), input.Category); err == nil && cat != nil {
+			prod.CategoryID = cat.ID
+		}
 	}
 
 	if err := h.repo.Create(r.Context(), prod); err != nil {
@@ -66,10 +86,20 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
+	search := q.Get("query")
+	if search == "" {
+		search = q.Get("search")
+	}
+	sortVal := q.Get("sort")
+	if sortVal == "" {
+		sortVal = q.Get("sort_by")
+	}
+
 	filter := domain.ProductFilter{
-		Query:       q.Get("query"),
+		Query:       search,
 		Category:    q.Get("category"),
 		InStockOnly: q.Get("in_stock") == "true",
+		SortBy:      sortVal,
 		Limit:       20,
 		Offset:      0,
 	}
@@ -86,6 +116,9 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if limitStr := q.Get("limit"); limitStr != "" {
 		if val, err := strconv.Atoi(limitStr); err == nil && val > 0 {
+			if val > 1000 {
+				val = 1000
+			}
 			filter.Limit = val
 		}
 	}
@@ -110,6 +143,37 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *ProductHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+	if h.categoryRepo != nil {
+		cats, err := h.categoryRepo.List(r.Context())
+		if err == nil && len(cats) > 0 {
+			names := make([]string, len(cats))
+			for i, c := range cats {
+				names[i] = c.Name
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"data": names,
+			})
+			return
+		}
+	}
+
+	categories, err := h.repo.GetCategories(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if categories == nil {
+		categories = []string{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"data": categories,
+	})
 }
 
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +210,25 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	catName := strings.TrimSpace(input.Category)
+	if h.categoryRepo != nil && catName != "" {
+		cat, err := h.categoryRepo.GetByName(r.Context(), catName)
+		if err != nil {
+			if errors.Is(err, domain.ErrCategoryNotFound) {
+				http.Error(w, "category '"+catName+"' does not exist; please select an existing category or create it first", http.StatusBadRequest)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		prod.CategoryID = cat.ID
+		catName = cat.Name
+	}
+
 	prod.SKU = strings.TrimSpace(input.SKU)
 	prod.Name = strings.TrimSpace(input.Name)
 	prod.Description = strings.TrimSpace(input.Description)
-	prod.Category = strings.TrimSpace(input.Category)
+	prod.Category = catName
 	prod.Price = input.Price
 	prod.Stock = input.Stock
 	prod.WeightKg = input.WeightKg

@@ -17,5 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecommerce-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "host=postgres user=ecommerce password=ecommerce_secret dbname=ecommerce_db port=5432 sslmode=disable"
+    ports:
+      - "8080:8080"
+
 volumes:
   postgres_data:

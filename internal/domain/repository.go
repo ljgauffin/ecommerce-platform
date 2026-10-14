@@ -11,6 +11,7 @@ type ProductFilter struct {
 	MinPrice    *float64
 	MaxPrice    *float64
 	InStockOnly bool
+	SortBy      string
 	Limit       int
 	Offset      int
 }
@@ -22,12 +23,22 @@ type ProductRepository interface {
 	Update(ctx context.Context, p *Product) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, filter ProductFilter) ([]Product, int64, error)
+	GetCategories(ctx context.Context) ([]string, error)
 	BulkUpsert(ctx context.Context, products []Product) (created int, updated int, err error)
 }
 
 type OrderRepository interface {
 	CreateWithLock(ctx context.Context, order *Order) error
 	GetByID(ctx context.Context, id string) (*Order, error)
+}
+
+type CategoryRepository interface {
+	Create(ctx context.Context, c *Category) error
+	GetByID(ctx context.Context, id string) (*Category, error)
+	GetByName(ctx context.Context, name string) (*Category, error)
+	FindOrCreate(ctx context.Context, name string) (*Category, error)
+	List(ctx context.Context) ([]Category, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type IdempotencyStatus string

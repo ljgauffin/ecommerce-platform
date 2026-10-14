@@ -21,6 +21,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
+		&domain.Category{},
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
@@ -140,4 +141,43 @@ func TestGormIdempotencyRepo(t *testing.T) {
 	assert.Equal(t, key, fetched.Key)
 	assert.Equal(t, domain.IdempotencyStatusCompleted, fetched.Status)
 	assert.Equal(t, 201, fetched.ResponseCode)
+}
+
+func TestGormCategoryRepo(t *testing.T) {
+	db := setupTestDB(t)
+	catRepo := persistence.NewGormCategoryRepo(db)
+	prodRepo := persistence.NewGormProductRepo(db)
+	ctx := context.Background()
+
+	cat, err := domain.NewCategory("Apparel")
+	require.NoError(t, err)
+	err = catRepo.Create(ctx, cat)
+	require.NoError(t, err)
+
+	dupCat, _ := domain.NewCategory("Apparel")
+	err = catRepo.Create(ctx, dupCat)
+	assert.ErrorIs(t, err, domain.ErrCategoryDuplicate)
+
+	found, err := catRepo.GetByName(ctx, "apparel")
+	require.NoError(t, err)
+	assert.Equal(t, cat.ID, found.ID)
+
+	autoCat, err := catRepo.FindOrCreate(ctx, "Footwear")
+	require.NoError(t, err)
+	assert.Equal(t, "Footwear", autoCat.Name)
+
+	list, err := catRepo.List(ctx)
+	require.NoError(t, err)
+	assert.Len(t, list, 2)
+
+	prod, err := domain.NewProduct("SKU-CAT-1", "Sneakers", "Desc", autoCat.Name, 50.0, 10, 0.5)
+	require.NoError(t, err)
+	prod.CategoryID = autoCat.ID
+	require.NoError(t, prodRepo.Create(ctx, prod))
+
+	err = catRepo.Delete(ctx, autoCat.ID)
+	assert.ErrorIs(t, err, domain.ErrCategoryHasProducts)
+
+	err = catRepo.Delete(ctx, cat.ID)
+	require.NoError(t, err)
 }

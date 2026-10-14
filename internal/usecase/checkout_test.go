@@ -21,6 +21,7 @@ func setupCheckoutTestDB(t *testing.T) (*gorm.DB, domain.ProductRepository, doma
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
+		&domain.Category{},
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
@@ -68,7 +69,6 @@ func TestCheckoutUseCase_Success(t *testing.T) {
 	assert.Equal(t, order.ID, orderDup.ID)
 	assert.Equal(t, order.OrderNumber, orderDup.OrderNumber)
 
-	// Stock remains 8!
 	updatedProd2, err := productRepo.GetByID(ctx, prod.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 8, updatedProd2.Stock)
@@ -83,7 +83,6 @@ func TestCheckoutUseCase_InsufficientStock(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, productRepo.Create(ctx, prod))
 
-	// Requesting 2 when only 1 available
 	order, err := uc.Execute(ctx, usecase.CheckoutInput{
 		CustomerEmail: "buyer@example.com",
 		Items: []usecase.CheckoutItemInput{
@@ -93,7 +92,6 @@ func TestCheckoutUseCase_InsufficientStock(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrInsufficientStock)
 	assert.Nil(t, order)
 
-	// Stock remains untouched
 	stillProd, err := productRepo.GetByID(ctx, prod.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, stillProd.Stock)
@@ -104,7 +102,6 @@ func TestCheckoutUseCase_ValidationErrors(t *testing.T) {
 	uc := usecase.NewCheckoutUseCase(productRepo, orderRepo, idempRepo)
 	ctx := context.Background()
 
-	// Invalid email
 	_, err := uc.Execute(ctx, usecase.CheckoutInput{
 		CustomerEmail: "invalid-email",
 		Items: []usecase.CheckoutItemInput{
@@ -113,14 +110,12 @@ func TestCheckoutUseCase_ValidationErrors(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, domain.ErrInvalidCustomerEmail)
 
-	// Empty items
 	_, err = uc.Execute(ctx, usecase.CheckoutInput{
 		CustomerEmail: "valid@example.com",
 		Items:         []usecase.CheckoutItemInput{},
 	})
 	assert.ErrorIs(t, err, usecase.ErrEmptyCheckoutItems)
 
-	// Invalid quantity
 	_, err = uc.Execute(ctx, usecase.CheckoutInput{
 		CustomerEmail: "valid@example.com",
 		Items: []usecase.CheckoutItemInput{

@@ -51,11 +51,13 @@ func main() {
 	log.Printf("Database connected and schema auto-migrated successfully.")
 
 	productRepo := persistence.NewGormProductRepo(db.Gorm)
+	categoryRepo := persistence.NewGormCategoryRepo(db.Gorm)
 	orderRepo := persistence.NewGormOrderRepo(db.Gorm)
 	idempotencyRepo := persistence.NewGormIdempotencyRepo(db.Gorm)
 
-	productHandler := apphttp.NewProductHandler(productRepo)
-	csvUC := usecase.NewCsvImportUseCase(productRepo)
+	productHandler := apphttp.NewProductHandler(productRepo, categoryRepo)
+	categoryHandler := apphttp.NewCategoryHandler(categoryRepo)
+	csvUC := usecase.NewCsvImportUseCase(productRepo, categoryRepo)
 	csvHandler := apphttp.NewCsvHandler(csvUC)
 	checkoutUC := usecase.NewCheckoutUseCase(productRepo, orderRepo, idempotencyRepo)
 	orderHandler := apphttp.NewOrderHandler(checkoutUC)
@@ -106,8 +108,15 @@ func main() {
 		})
 	})
 
+	r.Route("/api/v1/categories", func(r chi.Router) {
+		r.Get("/", categoryHandler.List)
+		r.Post("/", categoryHandler.Create)
+		r.Delete("/{id}", categoryHandler.Delete)
+	})
+
 	r.Route("/api/v1/products", func(r chi.Router) {
 		r.Get("/", productHandler.List)
+		r.Get("/categories", productHandler.GetCategories)
 		r.Post("/", productHandler.Create)
 		r.Post("/import-csv", csvHandler.ImportCSV)
 		r.Get("/{id}", productHandler.GetByID)

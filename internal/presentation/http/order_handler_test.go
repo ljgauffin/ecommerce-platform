@@ -27,6 +27,7 @@ func setupOrderHandlerTest(t *testing.T) (http.Handler, domain.ProductRepository
 	require.NoError(t, err)
 
 	err = db.AutoMigrate(
+		&domain.Category{},
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
