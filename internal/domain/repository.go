@@ -8,6 +8,7 @@ import (
 type ProductFilter struct {
 	Query       string
 	Category    string
+	CategoryID  string
 	MinPrice    *float64
 	MaxPrice    *float64
 	InStockOnly bool

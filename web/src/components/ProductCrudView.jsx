@@ -33,12 +33,11 @@ export default function ProductCrudView({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [stockFilter, setStockFilter] = useState("all"); // all, in_stock, low_stock, out_of_stock
+  const [stockFilter, setStockFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name-asc");
   const [copiedSku, setCopiedSku] = useState(null);
   const [showCsvHelp, setShowCsvHelp] = useState(false);
 
-  // Copy SKU helper with toast-like feedback
   const handleCopySku = (sku, e) => {
     e.stopPropagation();
     navigator.clipboard.writeText(sku).then(() => {
@@ -47,7 +46,6 @@ export default function ProductCrudView({
     });
   };
 
-  // KPIs
   const totalProducts = products.length;
   const totalStock = useMemo(() => {
     return products.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
@@ -61,28 +59,26 @@ export default function ProductCrudView({
     return products.filter((p) => p.stock > 0 && p.stock <= 5).length;
   }, [products]);
 
-  // Filter & sort logic
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        // Search filter
         if (searchTerm.trim()) {
           const q = searchTerm.toLowerCase().trim();
+          const catName = p.category?.name || (typeof p.category === "string" ? p.category : "");
           const matchSku = p.sku?.toLowerCase().includes(q);
           const matchName = p.name?.toLowerCase().includes(q);
-          const matchCategory = p.category?.toLowerCase().includes(q);
+          const matchCategory = catName.toLowerCase().includes(q);
           const matchDesc = p.description?.toLowerCase().includes(q);
           if (!matchSku && !matchName && !matchCategory && !matchDesc) {
             return false;
           }
         }
 
-        // Category filter
-        if (selectedCategory && p.category !== selectedCategory) {
+        const productCat = p.category?.name || (typeof p.category === "string" ? p.category : "");
+        if (selectedCategory && productCat !== selectedCategory) {
           return false;
         }
 
-        // Stock filter
         if (stockFilter === "in_stock" && p.stock <= 0) return false;
         if (stockFilter === "low_stock" && (p.stock <= 0 || p.stock > 5))
           return false;
@@ -112,7 +108,6 @@ export default function ProductCrudView({
       });
   }, [products, searchTerm, selectedCategory, stockFilter, sortBy]);
 
-  // Template download
   const handleDownloadCsvTemplate = () => {
     const csvContent =
       "sku,name,description,category,price,stock,weight_kg\n" +
@@ -146,7 +141,7 @@ export default function ProductCrudView({
           gap: 16,
         }}
       >
-        {/* Search Input */}
+        
         <div style={{ flex: "1 1 260px", position: "relative" }}>
           <Search
             size={16}
@@ -185,7 +180,7 @@ export default function ProductCrudView({
           )}
         </div>
 
-        {/* Filters and Sorters */}
+        
         <div
           style={{
             display: "flex",
@@ -194,7 +189,7 @@ export default function ProductCrudView({
             flexWrap: "wrap",
           }}
         >
-          {/* Category Filter */}
+          
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
               Category:
@@ -214,7 +209,7 @@ export default function ProductCrudView({
             </select>
           </div>
 
-          {/* Stock Filter */}
+          
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
               Stock:
@@ -232,7 +227,7 @@ export default function ProductCrudView({
             </select>
           </div>
 
-          {/* Sorter */}
+          
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <ArrowUpDown size={15} style={{ color: "var(--text-muted)" }} />
             <select
@@ -253,7 +248,7 @@ export default function ProductCrudView({
         </div>
       </div>
 
-      {/* ABM Products Table */}
+      
       <div
         className="card-glass"
         style={{ overflow: "hidden", border: "1px solid var(--border-subtle)" }}
@@ -407,7 +402,7 @@ export default function ProductCrudView({
                         (e.currentTarget.style.backgroundColor = "transparent")
                       }
                     >
-                      {/* SKU */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -457,7 +452,7 @@ export default function ProductCrudView({
                         </div>
                       </td>
 
-                      {/* Product Name & Description */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -489,7 +484,7 @@ export default function ProductCrudView({
                         )}
                       </td>
 
-                      {/* Category */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -500,11 +495,11 @@ export default function ProductCrudView({
                           className="badge badge-cyan"
                           style={{ fontSize: "0.72rem" }}
                         >
-                          {p.category || "General"}
+                          {p.category?.name || (typeof p.category === "string" ? p.category : "General")}
                         </span>
                       </td>
 
-                      {/* Price */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -526,7 +521,7 @@ export default function ProductCrudView({
                         </span>
                       </td>
 
-                      {/* Stock Badge */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -557,7 +552,7 @@ export default function ProductCrudView({
                         )}
                       </td>
 
-                      {/* Weight */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -583,7 +578,7 @@ export default function ProductCrudView({
                         </div>
                       </td>
 
-                      {/* CRUD Actions */}
+                      
                       <td
                         style={{
                           padding: "14px 18px",
@@ -631,7 +626,7 @@ export default function ProductCrudView({
           </div>
         )}
 
-        {/* Table Footer info */}
+        
         {!loading && !error && filteredProducts.length > 0 && (
           <div
             style={{

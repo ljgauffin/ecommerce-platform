@@ -52,17 +52,6 @@ func NewGormDB(ctx context.Context, dsn string) (*DB, error) {
 		return nil, fmt.Errorf("auto migrate models: %w", err)
 	}
 
-	var existingCats []string
-	gormDB.Model(&domain.Product{}).Where("category != ''").Distinct().Pluck("category", &existingCats)
-	for _, name := range existingCats {
-		var found domain.Category
-		if err := gormDB.Where("LOWER(name) = LOWER(?)", name).First(&found).Error; err != nil {
-			if c, err := domain.NewCategory(name); err == nil {
-				gormDB.Create(c)
-			}
-		}
-	}
-
 	return &DB{Gorm: gormDB}, nil
 }
 

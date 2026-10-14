@@ -10,6 +10,7 @@ export default function ProductFormModal({ isOpen, onClose, product, onSaveSucce
     name: '',
     description: '',
     category: '',
+    category_id: '',
     price: '',
     stock: '',
     weight_kg: '',
@@ -24,7 +25,8 @@ export default function ProductFormModal({ isOpen, onClose, product, onSaveSucce
         sku: product.sku || '',
         name: product.name || '',
         description: product.description || '',
-        category: product.category || '',
+        category: product.category?.name || (typeof product.category === 'string' ? product.category : ''),
+        category_id: product.category_id || product.category?.id || '',
         price: product.price !== undefined ? product.price : '',
         stock: product.stock !== undefined ? product.stock : '',
         weight_kg: product.weight_kg !== undefined ? product.weight_kg : '',
@@ -35,6 +37,7 @@ export default function ProductFormModal({ isOpen, onClose, product, onSaveSucce
         name: '',
         description: '',
         category: '',
+        category_id: '',
         price: '',
         stock: '',
         weight_kg: '',
@@ -47,7 +50,13 @@ export default function ProductFormModal({ isOpen, onClose, product, onSaveSucce
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'category') {
+      const match = categories.find((c) => (typeof c === 'string' ? c : c.name) === value);
+      const catId = match && typeof match === 'object' ? match.id : '';
+      setFormData((prev) => ({ ...prev, category: value, category_id: catId }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -92,6 +101,7 @@ export default function ProductFormModal({ isOpen, onClose, product, onSaveSucce
       name: formData.name.trim(),
       description: formData.description.trim(),
       category: formData.category.trim(),
+      category_id: formData.category_id || undefined,
       price: priceNum,
       stock: stockNum,
       weight_kg: weightNum,

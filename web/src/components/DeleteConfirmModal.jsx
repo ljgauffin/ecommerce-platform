@@ -70,7 +70,7 @@ export default function DeleteConfirmModal({
         </div>
 
         <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Warning banner */}
+          
           <div
             style={{
               backgroundColor: 'rgba(244, 63, 94, 0.08)',
@@ -91,7 +91,7 @@ export default function DeleteConfirmModal({
             </div>
           </div>
 
-          {/* Product details preview card */}
+          
           <div
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -121,7 +121,7 @@ export default function DeleteConfirmModal({
                   >
                     SKU: {product.sku}
                   </span>
-                  {product.category && (
+                  {(product.category?.name || (typeof product.category === 'string' && product.category)) && (
                     <span
                       className="badge"
                       style={{
@@ -131,7 +131,7 @@ export default function DeleteConfirmModal({
                         border: '1px solid rgba(59, 130, 246, 0.2)',
                       }}
                     >
-                      {product.category}
+                      {product.category?.name || product.category}
                     </span>
                   )}
                 </div>

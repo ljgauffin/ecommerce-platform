@@ -12,8 +12,8 @@ type Product struct {
 	SKU         string    `json:"sku" gorm:"uniqueIndex;not null;type:varchar(64)"`
 	Name        string    `json:"name" gorm:"not null;type:varchar(255);index"`
 	Description string    `json:"description" gorm:"type:text"`
-	CategoryID  string    `json:"category_id,omitempty" gorm:"type:varchar(64);index"`
-	Category    string    `json:"category" gorm:"not null;type:varchar(128);index"`
+	CategoryID  string    `json:"category_id" gorm:"not null;type:uuid;index"`
+	Category    *Category `json:"category,omitempty" gorm:"foreignKey:CategoryID"`
 	Price       float64   `json:"price" gorm:"not null;type:numeric(12,2);index"`
 	Stock       int       `json:"stock" gorm:"not null;default:0"`
 	WeightKg    float64   `json:"weight_kg" gorm:"not null;type:numeric(8,3)"`
@@ -21,13 +21,13 @@ type Product struct {
 	UpdatedAt   time.Time `json:"updated_at" gorm:"not null;autoUpdateTime"`
 }
 
-func NewProduct(sku, name, description, category string, price float64, stock int, weightKg float64) (*Product, error) {
+func NewProduct(sku, name, description, categoryID string, price float64, stock int, weightKg float64) (*Product, error) {
 	p := &Product{
 		ID:          uuid.NewString(),
 		SKU:         strings.TrimSpace(sku),
 		Name:        strings.TrimSpace(name),
 		Description: strings.TrimSpace(description),
-		Category:    strings.TrimSpace(category),
+		CategoryID:  strings.TrimSpace(categoryID),
 		Price:       price,
 		Stock:       stock,
 		WeightKg:    weightKg,

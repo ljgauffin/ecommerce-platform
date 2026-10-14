@@ -190,7 +190,25 @@ func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*Imp
 			continue
 		}
 
-		prod, err := domain.NewProduct(sku, name, description, category, price, stock, weight)
+		var categoryID string
+		var catObj *domain.Category
+		if uc.categoryRepo != nil && category != "" {
+			cat, err := uc.categoryRepo.FindOrCreate(ctx, category)
+			if err != nil {
+				result.Failed++
+				result.Errors = append(result.Errors, RowError{
+					Row:   rowNumber,
+					SKU:   sku,
+					Field: "category",
+					Error: fmt.Sprintf("failed to resolve category '%s': %v", category, err),
+				})
+				continue
+			}
+			categoryID = cat.ID
+			catObj = cat
+		}
+
+		prod, err := domain.NewProduct(sku, name, description, categoryID, price, stock, weight)
 		if err != nil {
 			result.Failed++
 			result.Errors = append(result.Errors, RowError{
@@ -201,6 +219,7 @@ func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*Imp
 			})
 			continue
 		}
+		prod.Category = catObj
 
 		cand := rowCandidate{
 			rowNumber: rowNumber,
@@ -231,18 +250,6 @@ func (uc *CsvImportUseCase) Execute(ctx context.Context, reader io.Reader) (*Imp
 	})
 
 	if len(validProducts) > 0 {
-		if uc.categoryRepo != nil {
-			for i := range validProducts {
-				if validProducts[i].Category != "" {
-					cat, err := uc.categoryRepo.FindOrCreate(ctx, validProducts[i].Category)
-					if err == nil && cat != nil {
-						validProducts[i].CategoryID = cat.ID
-						validProducts[i].Category = cat.Name
-					}
-				}
-			}
-		}
-
 		created, updated, err := uc.repo.BulkUpsert(ctx, validProducts)
 		if err != nil {
 			return nil, fmt.Errorf("bulk upsert valid products: %w", err)

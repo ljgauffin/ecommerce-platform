@@ -23,13 +23,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Store-specific filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
 
-  // Modals state
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -37,7 +35,6 @@ export default function App() {
   const [productToDelete, setProductToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Cart state persisted to localStorage
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem("aether_cart");
@@ -69,7 +66,6 @@ export default function App() {
     }
   }, [cartItems]);
 
-  // Synchronize hash with active tab
   const handleSelectTab = (tab) => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
@@ -103,7 +99,6 @@ export default function App() {
     try {
       const params = new URLSearchParams();
 
-      // Only apply store search and category filters if we are in the store tab
       if (activeTab === "store") {
         if (searchTerm.trim()) params.set("query", searchTerm.trim());
         if (selectedCategory) params.set("category", selectedCategory);
@@ -144,7 +139,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [fetchProducts]);
 
-  // Cart operations
   const handleAddToCart = (product) => {
     setCartItems((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
@@ -289,7 +283,7 @@ export default function App() {
     <div
       style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}
     >
-      {/* Top Navigation Bar with View Switcher */}
+      
       <Navbar
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
@@ -301,7 +295,7 @@ export default function App() {
         onOpenNewProduct={handleOpenNewProduct}
       />
 
-      {/* Main Content: Store View OR Product CRUD View */}
+      
       <main style={{ flex: 1 }}>
         {activeTab === "store" ? (
           <StoreView
@@ -344,7 +338,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Modals & Overlays */}
       <ProductFormModal
         isOpen={isProductFormOpen}
         onClose={() => setIsProductFormOpen(false)}

@@ -32,7 +32,7 @@ func (r *GormProductRepo) Create(ctx context.Context, p *domain.Product) error {
 
 func (r *GormProductRepo) GetByID(ctx context.Context, id string) (*domain.Product, error) {
 	var p domain.Product
-	err := r.db.WithContext(ctx).First(&p, "id = ?", id).Error
+	err := r.db.WithContext(ctx).Preload("Category").First(&p, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProductNotFound
@@ -44,7 +44,7 @@ func (r *GormProductRepo) GetByID(ctx context.Context, id string) (*domain.Produ
 
 func (r *GormProductRepo) GetBySKU(ctx context.Context, sku string) (*domain.Product, error) {
 	var p domain.Product
-	err := r.db.WithContext(ctx).First(&p, "sku = ?", sku).Error
+	err := r.db.WithContext(ctx).Preload("Category").First(&p, "sku = ?", sku).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrProductNotFound
@@ -83,25 +83,33 @@ func (r *GormProductRepo) Delete(ctx context.Context, id string) error {
 func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter) ([]domain.Product, int64, error) {
 	tx := r.db.WithContext(ctx).Model(&domain.Product{})
 
+	joinedCategories := false
 	if strings.TrimSpace(filter.Query) != "" {
+		tx = tx.Joins("LEFT JOIN categories ON categories.id = products.category_id")
+		joinedCategories = true
 		q := "%" + strings.ToLower(strings.TrimSpace(filter.Query)) + "%"
-		tx = tx.Where("LOWER(name) LIKE ? OR LOWER(sku) LIKE ? OR LOWER(description) LIKE ? OR LOWER(category) LIKE ?", q, q, q, q)
+		tx = tx.Where("LOWER(products.name) LIKE ? OR LOWER(products.sku) LIKE ? OR LOWER(products.description) LIKE ? OR LOWER(categories.name) LIKE ?", q, q, q, q)
 	}
 
-	if strings.TrimSpace(filter.Category) != "" {
-		tx = tx.Where("LOWER(category) = LOWER(?)", strings.TrimSpace(filter.Category))
+	if strings.TrimSpace(filter.CategoryID) != "" {
+		tx = tx.Where("products.category_id = ?", strings.TrimSpace(filter.CategoryID))
+	} else if strings.TrimSpace(filter.Category) != "" {
+		if !joinedCategories {
+			tx = tx.Joins("LEFT JOIN categories ON categories.id = products.category_id")
+		}
+		tx = tx.Where("LOWER(categories.name) = LOWER(?)", strings.TrimSpace(filter.Category))
 	}
 
 	if filter.MinPrice != nil {
-		tx = tx.Where("price >= ?", *filter.MinPrice)
+		tx = tx.Where("products.price >= ?", *filter.MinPrice)
 	}
 
 	if filter.MaxPrice != nil {
-		tx = tx.Where("price <= ?", *filter.MaxPrice)
+		tx = tx.Where("products.price <= ?", *filter.MaxPrice)
 	}
 
 	if filter.InStockOnly {
-		tx = tx.Where("stock > 0")
+		tx = tx.Where("products.stock > 0")
 	}
 
 	var total int64
@@ -120,20 +128,20 @@ func (r *GormProductRepo) List(ctx context.Context, filter domain.ProductFilter)
 		offset = 0
 	}
 
-	orderClause := "created_at desc"
+	orderClause := "products.created_at desc"
 	switch filter.SortBy {
 	case "price_asc", "price-asc":
-		orderClause = "price asc"
+		orderClause = "products.price asc"
 	case "price_desc", "price-desc":
-		orderClause = "price desc"
+		orderClause = "products.price desc"
 	case "name", "name_asc", "name-asc":
-		orderClause = "name asc"
+		orderClause = "products.name asc"
 	case "newest":
-		orderClause = "created_at desc"
+		orderClause = "products.created_at desc"
 	}
 
 	var products []domain.Product
-	if err := tx.Order(orderClause).Limit(limit).Offset(offset).Find(&products).Error; err != nil {
+	if err := tx.Preload("Category").Order(orderClause).Limit(limit).Offset(offset).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -147,15 +155,6 @@ func (r *GormProductRepo) GetCategories(ctx context.Context) ([]string, error) {
 		Distinct().
 		Order("name asc").
 		Pluck("name", &categories).Error
-	if err == nil && len(categories) > 0 {
-		return categories, nil
-	}
-
-	err = r.db.WithContext(ctx).Model(&domain.Product{}).
-		Where("category IS NOT NULL AND category != ''").
-		Distinct().
-		Order("category asc").
-		Pluck("category", &categories).Error
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +179,7 @@ func (r *GormProductRepo) BulkUpsert(ctx context.Context, products []domain.Prod
 	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "sku"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"name", "description", "category", "price", "stock", "weight_kg", "updated_at",
+			"name", "description", "category_id", "price", "stock", "weight_kg", "updated_at",
 		}),
 	}).CreateInBatches(products, 100)
 

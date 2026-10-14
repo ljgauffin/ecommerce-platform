@@ -53,7 +53,7 @@ export default function ProductCard({
         gap: 8,
       }}>
         <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>
-          {product.category || 'General'}
+          {product.category?.name || (typeof product.category === 'string' ? product.category : 'General')}
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

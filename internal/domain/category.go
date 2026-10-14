@@ -16,7 +16,7 @@ var (
 )
 
 type Category struct {
-	ID        string    `json:"id" gorm:"primaryKey;type:varchar(64)"`
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid"`
 	Name      string    `json:"name" gorm:"uniqueIndex;not null;type:varchar(128)"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"not null;autoUpdateTime"`

@@ -63,9 +63,13 @@ func TestConcurrentCheckout_StrictRowLevelLocking(t *testing.T) {
 
 	ctx := context.Background()
 
+	catRepo := persistence.NewGormCategoryRepo(db)
+	cat, err := catRepo.FindOrCreate(ctx, "Specials")
+	require.NoError(t, err)
+
 	uniqueSKU := fmt.Sprintf("CONC-%s", uuid.NewString()[:8])
 	initialStock := 5
-	prod, err := domain.NewProduct(uniqueSKU, "Flash Sale Item", "High contention item", "Specials", 15.0, initialStock, 0.5)
+	prod, err := domain.NewProduct(uniqueSKU, "Flash Sale Item", "High contention item", cat.ID, 15.0, initialStock, 0.5)
 	require.NoError(t, err)
 	require.NoError(t, productRepo.Create(ctx, prod))
 

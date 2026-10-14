@@ -42,7 +42,7 @@ export default function Navbar({
           flexWrap: "wrap",
         }}
       >
-        {/* Brand Logo & Switcher */}
+        
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div
             onClick={() => onSelectTab && onSelectTab("store")}
@@ -97,7 +97,7 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Navigation Tabs (Screens) */}
+          
           <nav
             style={{
               display: "flex",
@@ -167,7 +167,7 @@ export default function Navbar({
           </nav>
         </div>
 
-        {/* Right Section according to Active Tab */}
+        
         <div
           style={{
             display: "flex",
@@ -178,7 +178,7 @@ export default function Navbar({
         >
           {activeTab === "store" ? (
             <>
-              {/* Store Search Input */}
+              
               <div
                 style={{
                   position: "relative",
@@ -230,7 +230,7 @@ export default function Navbar({
                 )}
               </div>
 
-              {/* Cart Drawer Button */}
+              
               <button
                 className="btn btn-primary"
                 onClick={onOpenCart}
@@ -259,7 +259,7 @@ export default function Navbar({
             </>
           ) : (
             <>
-              {/* CRUD Quick Actions */}
+              
               <button
                 className="btn btn-secondary"
                 onClick={onOpenNewProduct}

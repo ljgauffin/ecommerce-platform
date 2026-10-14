@@ -170,9 +170,8 @@ func TestGormCategoryRepo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 2)
 
-	prod, err := domain.NewProduct("SKU-CAT-1", "Sneakers", "Desc", autoCat.Name, 50.0, 10, 0.5)
+	prod, err := domain.NewProduct("SKU-CAT-1", "Sneakers", "Desc", autoCat.ID, 50.0, 10, 0.5)
 	require.NoError(t, err)
-	prod.CategoryID = autoCat.ID
 	require.NoError(t, prodRepo.Create(ctx, prod))
 
 	err = catRepo.Delete(ctx, autoCat.ID)

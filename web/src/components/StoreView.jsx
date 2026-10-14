@@ -29,7 +29,7 @@ export default function StoreView({
 }) {
   return (
     <div>
-      {/* Filter and sorting controls */}
+      
       <Filters
         categories={categories}
         selectedCategory={selectedCategory}
@@ -41,7 +41,7 @@ export default function StoreView({
         totalProducts={totalCount}
       />
 
-      {/* Products Grid / Status */}
+      
       <div
         style={{
           maxWidth: 1300,

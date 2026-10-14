@@ -84,6 +84,7 @@ Codebase is structured into four decoupled layers:
 
 ### 4. Dedicated Categories Table & Controlled Entry
 - Categories are managed as a first-class entity in their own database table (`categories`) with unique constraints.
+- The `products` table stores solely `category_id` referencing `categories(id)` via foreign key relationship, removing redundant text columns from the product schema.
 - In manual product creation/updating, arbitrary free-text entry is restricted: products must reference an existing category from the database, preventing fragmentation and typos.
 - Categories have full RESTful management (`GET /api/v1/categories`, `POST /api/v1/categories`, `DELETE /api/v1/categories/:id` with foreign key protection).
 

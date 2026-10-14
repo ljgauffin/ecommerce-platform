@@ -93,7 +93,7 @@ func (r *GormCategoryRepo) Delete(ctx context.Context, id string) error {
 
 	var productCount int64
 	err = r.db.WithContext(ctx).Model(&domain.Product{}).
-		Where("category_id = ? OR LOWER(category) = LOWER(?)", cat.ID, cat.Name).
+		Where("category_id = ?", cat.ID).
 		Count(&productCount).Error
 	if err != nil {
 		return err
