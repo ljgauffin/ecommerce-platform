@@ -1,25 +1,40 @@
 AIR := $(shell which air 2>/dev/null || echo $(HOME)/go/bin/air)
 
-.PHONY: help watch run test test-concurrency ci-local docker-up docker-down docker-build up down build web web-build
+.PHONY: help db db-down api api-build web web-build watch run test test-concurrency ci-local up down build docker-up docker-down docker-build
 
 help:
 	@echo "Available commands:"
-	@echo "  make watch            - Run Go backend server with live-reloading (Air)"
-	@echo "  make run              - Run Go backend server directly (:8080)"
+	@echo "  make db               - Start PostgreSQL container (port 5433)"
+	@echo "  make db-down          - Stop PostgreSQL container"
+	@echo "  make api              - Run Go backend server with live-reloading (Air on :8080)"
+	@echo "  make web              - Run React + Vite frontend dev server (:3000)"
+	@echo "  make api-build        - Compile Go backend binary (bin/server)"
+	@echo "  make web-build        - Build React production bundle"
 	@echo "  make test             - Run all test suites"
 	@echo "  make test-concurrency - Run concurrency & race-condition test"
 	@echo "  make ci-local         - Run full local CI (tests + frontend build)"
-	@echo "  make build            - Compile Go backend binary (bin/server)"
-	@echo "  make web              - Run React + Vite frontend dev server (:3000)"
-	@echo "  make web-build        - Build React production bundle"
 	@echo "  make up               - Build and start full stack via Docker Compose"
 	@echo "  make down             - Stop all Docker Compose services"
-	@echo "  make docker-build     - Build Docker images"
-	@echo "  make docker-up        - Start PostgreSQL container only"
-	@echo "  make docker-down      - Stop all containers"
 
-watch:
+db:
+	docker compose up -d postgres
+
+db-down:
+	docker compose stop postgres
+
+api:
 	@$(AIR) -c .air.toml
+
+api-build:
+	@mkdir -p bin
+	go build -ldflags="-s -w" -o bin/server cmd/server/main.go
+	@echo "Backend binary built at bin/server"
+
+web:
+	cd web && npm run dev
+
+web-build:
+	cd web && npm install && npm run build
 
 run:
 	go run cmd/server/main.go
@@ -33,17 +48,6 @@ test-concurrency:
 ci-local: test test-concurrency web-build
 	@echo "All local CI checks passed successfully."
 
-build:
-	@mkdir -p bin
-	go build -ldflags="-s -w" -o bin/server cmd/server/main.go
-	@echo "Backend binary built at bin/server"
-
-web:
-	cd web && npm run dev
-
-web-build:
-	cd web && npm install && npm run build
-
 up:
 	docker compose up --build -d
 
@@ -53,10 +57,9 @@ down:
 docker-build:
 	docker compose build
 
-docker-up:
-	docker compose up -d postgres
-
-docker-down:
-	docker compose down
+watch: api
+build: api-build
+docker-up: db
+docker-down: db-down
 
 
