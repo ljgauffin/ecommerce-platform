@@ -32,5 +32,16 @@ services:
     ports:
       - "8080:8080"
 
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: ecommerce-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
 volumes:
   postgres_data:

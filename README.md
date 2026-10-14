@@ -8,21 +8,26 @@ A production-ready e-commerce platform built with Go (1.23+), PostgreSQL, and Re
 
 ## How to Run Locally
 
-### Option A: Full Docker (Recommended)
+### Option A: Full Docker Stack (Recommended)
 
-Run both the PostgreSQL database and the Go API as Docker containers:
+Run PostgreSQL, the Go API, and the React web frontend in Docker containers:
 
 ```bash
 docker compose up --build
+# or
+make up
 ```
-- API server: `http://localhost:8080`
-- Swagger UI: `http://localhost:8080/swagger`
 
-To run the React frontend:
+- **Frontend Web UI**: `http://localhost:3000`
+- **Backend API Server**: `http://localhost:8080`
+- **Swagger OpenAPI Documentation**: `http://localhost:8080/swagger`
+
+To stop all containers:
 ```bash
-make web
+docker compose down
+# or
+make down
 ```
-- Frontend UI: `http://localhost:3000`
 
 ### Option B: Local Development with Live Reload
 
@@ -109,8 +114,72 @@ Codebase is structured into four decoupled layers:
 
 ---
 
-## Running Tests
+## Testing & CI/CD
+
+### Running Tests Locally
 
 ```bash
+# Run all unit and integration test suites
 make test
+
+# Run the live concurrency benchmark with race detector
+make test-concurrency
+
+# Run full local CI (backend tests, race detector, frontend build)
+make ci-local
 ```
+
+### GitHub Actions CI Pipeline
+
+The project includes an automated CI workflow at `.github/workflows/ci.yml` that executes on every push and pull request to `main`:
+- Spins up a real PostgreSQL 16 service container.
+- Runs all unit & integration tests with the Go race detector (`-race`).
+- Executes the concurrency benchmark (`tests/concurrency_test.go`).
+- Builds the backend binary (`bin/server`).
+- Builds the React production bundle (`web/dist`).
+- Validates Docker Compose image builds.
+
+---
+
+## Makefile Command Reference
+
+| Command | Description |
+|---|---|
+| `make up` | Start full platform (Postgres, Go API, React Web) via Docker Compose |
+| `make down` | Stop all Docker Compose containers |
+| `make watch` | Run Go backend with live reloading (`air`) on `:8080` |
+| `make web` | Run React + Vite frontend dev server on `:3000` |
+| `make test` | Run all test suites |
+| `make test-concurrency` | Run race-condition checkout benchmark |
+| `make ci-local` | Run complete CI suite locally |
+| `make build` | Compile Go binary to `bin/server` |
+| `make web-build` | Install frontend dependencies and build production assets |
+| `make docker-build` | Build Docker images for both backend and frontend |
+| `make docker-up` | Start PostgreSQL container only (port `5433`) |
+| `make docker-down` | Stop PostgreSQL container |
+
+---
+
+## REST API Reference
+
+All endpoints are documented interactively via Swagger UI at `/swagger`.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/products` | List products with pagination, server-side search, and category/price filters |
+| `POST` | `/api/v1/products` | Create a new product (validates category in `categories` table) |
+| `GET` | `/api/v1/products/:id` | Get product details by UUID |
+| `PUT` | `/api/v1/products/:id` | Update an existing product |
+| `DELETE` | `/api/v1/products/:id` | Delete a product |
+| `POST` | `/api/v1/products/import-csv` | Bulk import products via multipart CSV upload |
+| `GET` | `/api/v1/products/categories` | List distinct category names (string array) |
+| `GET` | `/api/v1/categories` | List all category objects (`id`, `name`, timestamps) |
+| `POST` | `/api/v1/categories` | Create a new category |
+| `DELETE` | `/api/v1/categories/:id` | Delete a category (prevented if products are associated) |
+| `POST` | `/api/v1/orders/checkout` | Process order checkout (`Idempotency-Key` header required) |
+| `GET` | `/api/v1/orders/:id` | Retrieve order by ID |
+| `GET` | `/swagger` | Interactive OpenAPI documentation UI |
+| `GET` | `/swagger/doc.json` | OpenAPI 3.0 JSON specification |
+| `GET` | `/health/live` | Liveness health check |
+| `GET` | `/health/ready` | Readiness health check (validates database connection) |
+
